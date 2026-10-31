@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBJECT_REPO: YOUR_USER/YOUR_SUBJECT_REPO
+  SUBJECT_REPO: eckko/${{ vars.SUBJECT_REPO || 'YOUR_SUBJECT_REPO' }}
   # The folder (and URL name) of the book: lower-case letters, digits, dashes.
   BOOK_FOLDER: ${{ github.event.repository.name }}
 

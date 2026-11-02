@@ -1,41 +1,58 @@
-# Publishes this book into a subject site. It lives in the book shell, so
-# every new book repo starts with it. Set SUBJECT_REPO below and add the
-# secret SUBJECT_REPO_TOKEN; until SUBJECT_REPO is set the workflow does
-# nothing.
+# Builds the encrypted book site (reader + quiz) of this book and publishes it
+# into a subject site made from eckko/subject-reader-shell. Copy it to
+# .github/workflows/publish-encrypted-book.yml in the private book repo and
+# set the env values below.
 #
-# It publishes only index.html, questions.json, images/favicon.png and
-# media/ into the subject site's folder for this book. Nothing else in the
-# book repo is read.
+# The plain book never leaves this repo: the job reads the EPUB (and your
+# notes EPUB) and questions.json, encrypts everything with the subject key
+# inside the runner and publishes only the small pages, book.json and
+# *.enc files. The build tools and the publish script both come from
+# eckko/recall-quiz-site-template at TEMPLATE_TAG (the same tag readers load
+# the code from), so the subject site needs no tools of its own.
 #
-# One-time setup:
-#   1. Create a fine-grained personal access token for the subject repo
-#      only, with "Contents: Read and write".
-#   2. Save it in this book repo as the secret SUBJECT_REPO_TOKEN
-#      (Settings > Secrets and variables > Actions).
-name: Publish to subject site
+# One-time setup (Settings > Secrets and variables > Actions of this repo):
+#   READER_SUBJECT_REPO_TOKEN  fine-grained token for the subject repo only,
+#                              "Contents: Read and write"
+#   SUBJECT_KEY                the subject key: 32 bytes as 64 hex characters
+#                              or base64. One key for the whole subject.
+#   QUIZ_MEDIA_OLD_KEY         only if this book's media/ files were NOT made
+#                              with the public "placeholder" key: their key
+#                              (base64)
+#   (optional variable) READER_SUBJECT_REPO  name of the subject repo
+name: Publish encrypted book (reader + quiz)
 
 on:
   push:
     branches: [main]
     paths:
-      - index.html
+      - references/**
       - questions.json
-      - images/favicon.png
       - media/**
-      - .github/workflows/publish-to-subject.yml
+      - book-structure/**
+      - .github/workflows/publish-encrypted-book.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: publish-to-subject
+  group: publish-encrypted-book
   cancel-in-progress: false
 
 env:
-  SUBJECT_REPO: eckko/${{ vars.SUBJECT_REPO || 'YOUR_SUBJECT_REPO' }}
+  READER_SUBJECT_REPO: eckko/${{ vars.READER_SUBJECT_REPO || 'YOUR_SUBJECT_REPO' }}
   # The folder (and URL name) of the book: lower-case letters, digits, dashes.
   BOOK_FOLDER: ${{ github.event.repository.name }}
+  # Leave empty for a quiz-only book (no reader).
+  BOOK_EPUB: references/The_power_of_habit_-_Charles_Duhigg.epub
+  NOTES_EPUB: references/The_Power_of_Habit_Notes.epub
+  # An exact tag of eckko/recall-quiz-site-template such as 3.1.0: no "v",
+  # never a branch.
+  # NOTE: 3.2.1 cannot build this book: its EPUB has chapters in a text/ folder
+  # and an "Appendix: ..." title, and add_notes.py cannot find notes files
+  # for the prefixes u1..u9 / ap. Change this to the first tag that has both
+  # fixes before running the workflow.
+  TEMPLATE_TAG: 3.2.5
 
 jobs:
   publish:
@@ -44,13 +61,20 @@ jobs:
       - name: Check the setup
         id: setup
         env:
-          TOKEN: ${{ secrets.SUBJECT_REPO_TOKEN }}
+          TOKEN: ${{ secrets.READER_SUBJECT_REPO_TOKEN }}
+          KEY: ${{ secrets.SUBJECT_KEY }}
         run: |
-          if [[ "$SUBJECT_REPO" == *YOUR_* ]]; then
-            echo "::notice::SUBJECT_REPO is not set in this workflow; nothing published."
+          if [[ "$READER_SUBJECT_REPO" == *YOUR_* || "$BOOK_EPUB" == *YOUR_* ]]; then
+            echo "::notice::READER_SUBJECT_REPO or BOOK_EPUB is not set; nothing published."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           elif [ -z "$TOKEN" ]; then
-            echo "::error::The secret SUBJECT_REPO_TOKEN is missing."
+            echo "::error::The secret READER_SUBJECT_REPO_TOKEN is missing."
+            exit 1
+          elif [ -z "$KEY" ]; then
+            echo "::error::The secret SUBJECT_KEY is missing."
+            exit 1
+          elif ! [[ "$TEMPLATE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::TEMPLATE_TAG must be an exact tag like 3.1.0 (no v, no branch)."
             exit 1
           fi
 
@@ -64,10 +88,40 @@ jobs:
         if: steps.setup.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
-          repository: ${{ env.SUBJECT_REPO }}
-          token: ${{ secrets.SUBJECT_REPO_TOKEN }}
+          repository: ${{ env.READER_SUBJECT_REPO }}
+          token: ${{ secrets.READER_SUBJECT_REPO_TOKEN }}
           path: subject
+
+      - name: Check out the build tools (template at its tag)
+        if: steps.setup.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: eckko/recall-quiz-site-template
+          ref: ${{ env.TEMPLATE_TAG }}
+          path: template
+
+      - name: Set up Python
+        if: steps.setup.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the build tools' packages
+        if: steps.setup.outputs.skip != 'true'
+        run: pip install beautifulsoup4 lxml cryptography
+
+      - name: Build the encrypted site
+        if: steps.setup.outputs.skip != 'true'
+        env:
+          SUBJECT_KEY: ${{ secrets.SUBJECT_KEY }}
+          QUIZ_MEDIA_OLD_KEY: ${{ secrets.QUIZ_MEDIA_OLD_KEY }}
+        run: |
+          echo "::add-mask::$SUBJECT_KEY"
+          args=(--book book --template-tag "$TEMPLATE_TAG" --out "$RUNNER_TEMP/site")
+          if [ -n "$BOOK_EPUB" ]; then args+=(--epub "$BOOK_EPUB"); fi
+          if [ -n "$NOTES_EPUB" ]; then args+=(--notes-epub "$NOTES_EPUB"); fi
+          python3 template/tools/book_build/build_book.py "${args[@]}"
 
       - name: Publish
         if: steps.setup.outputs.skip != 'true'
-        run: subject/tools/publish_book.sh "$PWD/book" "$BOOK_FOLDER"
+        run: template/tools/site/publish_book.sh "$RUNNER_TEMP/site" "$BOOK_FOLDER" subject

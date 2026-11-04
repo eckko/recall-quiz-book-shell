@@ -21,7 +21,7 @@ on:
       - main
       # The pipeline's "Update book" workflow opens its own pull request
       # (with a report) for these branches; a second one would make it fail.
-      - "feat/*/update-from-template-*"
+      - "chore/update-from-template/**"
 
 permissions:
   contents: read

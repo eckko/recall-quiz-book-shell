@@ -10,12 +10,13 @@ on jsDelivr. Use this repository as the starting point for each new book.
 
 | Path | What it is |
 |---|---|
-| `index.html` | A tiny loader: shows the favicon and loads the quiz from the template on the CDN |
+| `index.html` | A tiny loader: shows the favicon, reads `book.json` and loads the quiz from the template on the CDN |
+| `book.json` | Book settings. `templateVersion` says which template version to load (`3` or `3.1.0`) |
 | `questions.json` | The question bank. This is a **sample** (2 ideas, 13 questions); replace it |
 | `images/favicon.png` | The browser-tab icon (replace with the book's) |
 | `media/` | The book's pictures, encrypted (`media/<id>.enc`). The sample holds one figure and one cover |
 | `book-structure/` | The chapter map the bank is built from (sample) |
-| `tools/set_template_tag.py` | Moves the book to another template tag |
+| `tools/set_template_tag.py` | Writes `templateVersion` into `book.json` |
 
 Nothing else belongs here: no `css/`, `js/`, `htrab/`, `themes/` or
 `vendor/` folders. If the book uses extra banks (`?bank=banks/name.json`),
@@ -57,16 +58,29 @@ the placeholder key. Details: the template's `ai-context/data-formats.md`.
 
 ## Choose the template version
 
-`index.html` names one exact template tag (for example `2.1.0`). A tag
-never changes, so the site never changes under you. To move to a newer
-template:
+`book.json` holds one setting, `templateVersion`:
 
-```
-python3 tools/set_template_tag.py 2.2.0
+```json
+{ "templateVersion": "3" }
 ```
 
-then commit `index.html`. Never point it at a branch such as `main`: a
-branch changes under the site and the CDN caches it for a long time.
+| Value | Meaning |
+|---|---|
+| `"3"` | The newest `3.x.x` release. Fixes and features of major version 3 reach the book by themselves; a move to 4 is always your choice. |
+| `"3.1.0"` | Exactly that release. It never changes, so the site never changes under you. |
+
+Edit `book.json` by hand, or run `python3 tools/set_template_tag.py 3`
+(or `3.1.0`), then commit `book.json`. Never use a branch name such as
+`main`.
+
+If `book.json` is missing or the value is not like `3` or `3.1.0`, the page
+falls back to the default major version written in `index.html`
+(`DEFAULT_VERSION`) and logs a warning in the browser console.
+
+jsDelivr resolves a major version to the newest matching tag and caches
+that answer, so a new template release can take up to about 12 hours to
+reach a book that uses `"3"`. Use an exact version when you need a change
+to appear immediately or a site that must not move.
 
 ## Try it on your computer
 

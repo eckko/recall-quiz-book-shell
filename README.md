@@ -87,6 +87,7 @@ to appear immediately or a site that must not move.
 | File | What it does |
 |---|---|
 | `.github/workflows/publish-to-subject.yml` | Builds the encrypted site and publishes it into a subject site. Starts on a push to `main` that changes the book, by hand or a script (`gh workflow run publish-to-subject.yml -f SUBJECT_REPO=habit-reader -f TEMPLATE_TAG=3.2.5`), or from another workflow (`uses: ...publish-to-subject.yml@main` with `secrets: inherit`). Both inputs are optional: `SUBJECT_REPO` defaults to the repository variable of that name, `TEMPLATE_TAG` to the value in the file (an exact tag, not a major version, because it is checked out for the build tools). |
+| `.github/workflows/auto-pr.yml` | Opens a pull request into the default branch when any branch other than `main` is pushed, unless one is already open. Needs Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" (or a token in the secret `AUTO_PR_TOKEN`). Branches named `feat/*/update-from-template-*` are skipped, because the pipeline's Update book workflow opens its own PR for them. |
 
 ## Try it on your computer
 

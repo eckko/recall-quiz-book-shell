@@ -100,7 +100,7 @@ env:
   # and an "Appendix: ..." title, and add_notes.py cannot find notes files
   # for the prefixes u1..u9 / ap. Change this to the first tag that has both
   # fixes before running the workflow.
-  TEMPLATE_TAG: ${{ inputs.TEMPLATE_TAG || '3.2.5' }}
+  TEMPLATE_TAG: ${{ inputs.TEMPLATE_TAG || '3.2.11' }}
 
 jobs:
   publish:

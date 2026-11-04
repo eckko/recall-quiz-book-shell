@@ -82,6 +82,13 @@ that answer, so a new template release can take up to about 12 hours to
 reach a book that uses `"3"`. Use an exact version when you need a change
 to appear immediately or a site that must not move.
 
+## GitHub workflows
+
+| File | What it does |
+|---|---|
+| `.github/workflows/publish-to-subject.yml` | Builds the encrypted site and publishes it into a subject site. Starts on a push to `main` that changes the book, by hand or a script (`gh workflow run publish-to-subject.yml -f SUBJECT_REPO=habit-reader -f TEMPLATE_TAG=3.2.5`), or from another workflow (`uses: ...publish-to-subject.yml@main` with `secrets: inherit`). Both inputs are optional: `SUBJECT_REPO` defaults to the repository variable of that name, `TEMPLATE_TAG` to the value in the file (an exact tag, not a major version, because it is checked out for the build tools). |
+| `.github/workflows/auto-pr.yml` | Opens a pull request into the default branch when a `feat/**` branch is pushed, unless one is already open. Needs Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests". |
+
 ## Try it on your computer
 
 Run `python3 -m http.server` in this folder and open

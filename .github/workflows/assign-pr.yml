@@ -1,0 +1,38 @@
+# Assigns every new pull request to the repository owner (or to the user in
+# the repository variable PR_ASSIGNEE), unless someone is already assigned.
+#
+# GitHub has no "default assignee" setting, so this does it. PRs opened by
+# auto-pr.yml are assigned there directly: a PR opened with the built-in
+# token does not start other workflows.
+#
+# pull_request_target runs the version of this file on the default branch,
+# so a change here takes effect only after it is merged. The job checks out
+# no code, so it is safe for PRs from anyone.
+name: Assign pull requests
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign the owner unless someone is assigned
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_PR_TOKEN || github.token }}
+          ASSIGNEE: ${{ vars.PR_ASSIGNEE || github.repository_owner }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          assigned=$(gh pr view "$PR" --repo "$REPO" \
+            --json assignees --jq '.assignees | length')
+          if [ "$assigned" -gt 0 ]; then
+            echo "PR #$PR already has an assignee; nothing to do."
+            exit 0
+          fi
+          gh pr edit "$PR" --repo "$REPO" --add-assignee "$ASSIGNEE"

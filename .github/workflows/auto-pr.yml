@@ -1,6 +1,7 @@
-# Opens a pull request into the default branch whenever a feat/** branch is
-# created or gets new commits. If the branch already has an open PR, nothing
-# is done (the new commits show up in that PR by themselves).
+# Opens a pull request (assigned to the repository owner) into the default
+# branch whenever a feat/** branch is created or gets new commits. If the
+# branch already has an open PR, nothing is done (the new commits show up in
+# that PR by themselves).
 #
 # One-time setup: Settings > Actions > General > Workflow permissions, tick
 # "Allow GitHub Actions to create and approve pull requests". Without it the
@@ -39,6 +40,9 @@ jobs:
           GH_TOKEN: ${{ secrets.AUTO_PR_TOKEN || github.token }}
           BRANCH: ${{ github.ref_name }}
           BASE: ${{ github.event.repository.default_branch }}
+          # Who the PR is assigned to: the repository variable PR_ASSIGNEE,
+          # else the repository owner.
+          ASSIGNEE: ${{ vars.PR_ASSIGNEE || github.repository_owner }}
         run: |
           existing=$(gh pr list --head "$BRANCH" --base "$BASE" \
             --state open --json number --jq '.[0].number')
@@ -56,4 +60,5 @@ jobs:
           # Title and description come from the commits (--fill): one commit
           # gives its subject and message, several give the branch name and
           # a list of the commit subjects.
-          gh pr create --base "$BASE" --head "$BRANCH" --fill
+          gh pr create --base "$BASE" --head "$BRANCH" --fill \
+            --assignee "$ASSIGNEE"

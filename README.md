@@ -88,6 +88,27 @@ to appear immediately or a site that must not move.
 |---|---|
 | `.github/workflows/publish-to-subject.yml` | Builds the encrypted site and publishes it into a subject site. Starts on a push to `main` that changes the book, by hand or a script (`gh workflow run publish-to-subject.yml -f SUBJECT_REPO=habit-reader -f TEMPLATE_TAG=3.2.5`), or from another workflow (`uses: ...publish-to-subject.yml@main` with `secrets: inherit`). Both inputs are optional: `SUBJECT_REPO` defaults to the repository variable of that name, `TEMPLATE_TAG` to the value in the file (an exact tag, not a major version, because it is checked out for the build tools). |
 | `.github/workflows/auto-pr.yml` | Opens a pull request into the default branch when a `feat/**` branch is pushed, unless one is already open. Needs Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests". |
+| `.github/workflows/assign-pr.yml` | Assigns every new pull request to the repository owner (or the user in the repository variable `PR_ASSIGNEE`) when nobody is assigned yet. It starts from the default branch's copy of the file, so it works once merged. PRs made by `auto-pr.yml` are assigned there directly. |
+
+## Branch protection
+
+Rule for every book repo: changes reach `main` only through a branch and a
+pull request, except the owner, who may also push to `main` directly.
+GitHub does not copy protection settings from a template, so apply it to
+each repo once:
+
+```
+python3 tools/protect_repo.py my-book other-book      # create or update
+python3 tools/protect_repo.py my-book --check          # is it protected?
+python3 tools/protect_repo.py my-book --dry-run        # preview only
+```
+
+It sets one ruleset, "Protect default branch": a pull request is required
+(no approval needed, so you can merge your own), force-push and deletion
+are blocked, and the repository admin role may bypass it. Needs the GitHub
+CLI signed in with admin rights; private repos need GitHub Pro. The
+bypass applies to anyone using an admin token, so automation that must go
+through pull requests needs a token without admin rights.
 
 ## Try it on your computer
 

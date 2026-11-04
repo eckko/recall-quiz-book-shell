@@ -19,6 +19,23 @@
 #                              with the public "placeholder" key: their key
 #                              (base64)
 #   (optional variable) SUBJECT_REPO  name of the subject repo
+#
+# Ways to start it:
+#   - a push to main that changes the book (see paths below);
+#   - by hand or by a script (needs this file on the default branch):
+#       gh workflow run publish-to-subject.yml \
+#         -f SUBJECT_REPO=habit-reader -f TEMPLATE_TAG=3.2.5
+#   - from another workflow of any repo that can see this one:
+#       uses: eckko/<book>/.github/workflows/publish-to-subject.yml@main
+#       with: { SUBJECT_REPO: habit-reader, TEMPLATE_TAG: 3.2.5 }
+#       secrets: inherit
+#
+# Inputs (both optional):
+#   SUBJECT_REPO  the subject site to publish into, "name" (owner eckko) or
+#                 "owner/name". Default: the repository variable SUBJECT_REPO.
+#   TEMPLATE_TAG  an exact template tag such as 3.2.5 (no "v", not a major
+#                 like 3, never a branch): it is checked out for the build
+#                 tools, so it must be a real tag. Default: the value below.
 name: Publish encrypted book (reader + quiz)
 
 on:
@@ -29,8 +46,36 @@ on:
       - questions.json
       - media/**
       - book-structure/**
+      # This file's name here, and its name in the private book repos.
+      - .github/workflows/publish-to-subject.yml
       - .github/workflows/publish-encrypted-book.yml
   workflow_dispatch:
+    inputs:
+      SUBJECT_REPO:
+        description: 'Subject site to publish into: "name" or "owner/name"'
+        required: false
+        type: string
+      TEMPLATE_TAG:
+        description: "Exact template tag, for example 3.2.5"
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      SUBJECT_REPO:
+        description: 'Subject site to publish into: "name" or "owner/name"'
+        required: false
+        type: string
+      TEMPLATE_TAG:
+        description: "Exact template tag, for example 3.2.5"
+        required: false
+        type: string
+    secrets:
+      SUBJECT_REPO_TOKEN:
+        required: false
+      SUBJECT_KEY:
+        required: false
+      QUIZ_MEDIA_OLD_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -40,19 +85,22 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBJECT_REPO: eckko/${{ vars.SUBJECT_REPO || 'YOUR_SUBJECT_REPO' }}
+  # The input (by hand, script or caller workflow) wins over the repository
+  # variable. A bare name gets the owner eckko.
+  SUBJECT_REPO: ${{ inputs.SUBJECT_REPO && (contains(inputs.SUBJECT_REPO, '/') && inputs.SUBJECT_REPO || format('eckko/{0}', inputs.SUBJECT_REPO)) || format('eckko/{0}', vars.SUBJECT_REPO || 'YOUR_SUBJECT_REPO') }}
   # The folder (and URL name) of the book: lower-case letters, digits, dashes.
   BOOK_FOLDER: ${{ github.event.repository.name }}
   # Leave empty for a quiz-only book (no reader).
   BOOK_EPUB: references/The_power_of_habit_-_Charles_Duhigg.epub
   NOTES_EPUB: references/The_Power_of_Habit_Notes.epub
   # An exact tag of eckko/recall-quiz-site-template such as 3.1.0: no "v",
-  # never a branch.
+  # never a branch. The input TEMPLATE_TAG overrides the default after the
+  # colon below.
   # NOTE: 3.2.1 cannot build this book: its EPUB has chapters in a text/ folder
   # and an "Appendix: ..." title, and add_notes.py cannot find notes files
   # for the prefixes u1..u9 / ap. Change this to the first tag that has both
   # fixes before running the workflow.
-  TEMPLATE_TAG: 3.2.5
+  TEMPLATE_TAG: ${{ inputs.TEMPLATE_TAG || '3.2.5' }}
 
 jobs:
   publish:
@@ -72,6 +120,9 @@ jobs:
             exit 1
           elif [ -z "$KEY" ]; then
             echo "::error::The secret SUBJECT_KEY is missing."
+            exit 1
+          elif ! [[ "$SUBJECT_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::SUBJECT_REPO must be like 'habit-reader' or 'eckko/habit-reader'."
             exit 1
           elif ! [[ "$TEMPLATE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::TEMPLATE_TAG must be an exact tag like 3.1.0 (no v, no branch)."

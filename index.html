@@ -1,17 +1,62 @@
 <!doctype html>
 <!--
-  Made by tools/make_book_index.py (recall-quiz-site-template). This page
-  only shows the favicon and starts js/boot.js, which loads the quiz page
-  and every css/ and js/ file from the CDN at tag 2.2.1.
-  To move this book to another template tag, run the tool again with that
-  tag (or use tools/set_template_tag.py). questions.json, images/ and
-  media/ stay here.
+  Made by tools/make_book_index.py (recall-quiz-site-template), then changed
+  to read the template version from book.json. This page only shows the
+  favicon, reads "templateVersion" from book.json and starts js/boot.js,
+  which loads the quiz page and every css/ and js/ file from the CDN at that
+  version.
+
+  templateVersion in book.json is either
+    "3"      the newest 3.x.x (a major version: bug fixes and features of
+             that major arrive on their own), or
+    "3.1.0"  exactly that release (never changes).
+  Change it with tools/set_template_tag.py or by editing book.json.
+  questions.json, images/ and media/ stay here.
 -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <link rel="icon" href="images/favicon.png" type="image/png">
-  <script src="https://cdn.jsdelivr.net/gh/eckko/recall-quiz-site-template@2.2.1/js/boot.js"></script>
+  <script>
+    (function loadTemplate() {
+      // Used when book.json is missing or has no usable templateVersion.
+      var DEFAULT_VERSION = "2";
+      var VERSION = /^\d+(\.\d+){0,2}$/;
+
+      // Adds boot.js from the CDN. It must be a script element made here:
+      // boot.js finds its CDN folder from its own address.
+      function loadBoot(version) {
+        var script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/gh/eckko/" +
+          "recall-quiz-site-template@" + version + "/js/boot.js";
+        document.head.appendChild(script);
+      }
+
+      // The templateVersion in book.json, or DEFAULT_VERSION.
+      function chooseVersion(config) {
+        var version = String((config && config.templateVersion) || "").trim();
+        if (VERSION.test(version)) {
+          return version;
+        }
+        if (version) {
+          console.warn("book.json: templateVersion '" + version +
+            "' is not like 3 or 3.1.0; using " + DEFAULT_VERSION);
+        }
+        return DEFAULT_VERSION;
+      }
+
+      fetch("book.json", { cache: "no-cache" })
+        .then(function read(response) {
+          return response.ok ? response.json() : {};
+        })
+        .catch(function ignore() {
+          return {};
+        })
+        .then(function start(config) {
+          loadBoot(chooseVersion(config));
+        });
+    })();
+  </script>
 </head>
 <body></body>
 </html>

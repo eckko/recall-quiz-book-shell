@@ -91,8 +91,8 @@ env:
   # The folder (and URL name) of the book: lower-case letters, digits, dashes.
   BOOK_FOLDER: ${{ github.event.repository.name }}
   # Leave empty for a quiz-only book (no reader).
-  BOOK_EPUB: references/The_power_of_habit_-_Charles_Duhigg.epub
-  NOTES_EPUB: references/The_Power_of_Habit_Notes.epub
+  BOOK_EPUB: references/book.epub
+  NOTES_EPUB: references/notes.epub
   # An exact tag of eckko/recall-quiz-site-template such as 3.1.0: no "v",
   # never a branch. The input TEMPLATE_TAG overrides the default after the
   # colon below.

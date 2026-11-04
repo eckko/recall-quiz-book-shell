@@ -6,5 +6,3 @@ The version is set in `book.json` (`templateVersion`: a major version
 like `3` or an exact one like `3.1.0`; `python3 tools/set_template_tag.py
 VERSION`). Never use a branch. For the code, tools, tests and
 AI notes (AGENTS.md, ai-context/), see the template repo.
-Changes go on a branch and a pull request (`feat/**` branches get one
-automatically); only the owner pushes to `main`.
